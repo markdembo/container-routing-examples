@@ -4,7 +4,8 @@ import { basicAuth } from 'hono/basic-auth'
 
 const SERVICES: Record<string, number> = {
   web: 8080,
-  time: 8081
+  time: 8081,
+  ws: 8082
 }
 
 
@@ -35,6 +36,12 @@ export class Sandbox extends Container {
 
   override onError(error: unknown) {
     console.log("Container error:", error);
+  }
+
+  override async fetch(request: Request): Promise<Response> {
+    const port = Number(request.headers.get('x-port-cf') ?? this.defaultPort);
+    // Forward all requests (HTTP and WebSocket) to the container
+    return await this.containerFetch(request, port);
   }
 
 
@@ -129,7 +136,10 @@ app.post("/admin/container/:id/update-text", async (c) => {
   const container = c.env.SANDBOX_CONTAINERS.get(containerId);
  
   // Overwriting path to remove container references
-  return await container.containerFetch("http://localhost/admin-private/update-text",c.req.raw, SERVICES.web);
+  // HACK:  Setting x-port-cf header to 8080 to ensure the request is forwarded to the web service
+  const modRequest = new Request(c.req.raw)
+  modRequest.headers.set("x-port-cf", "8080");
+  return await container.fetch("http://localhost/admin-private/update-text",modRequest);
 });
 
 
@@ -163,7 +173,10 @@ app.get("*", async (c) => {
     return c.json({ error: "No permission" }, 401);
   }
   // Proxy request to container
-  return await container.containerFetch(req, SERVICES[service]);
+  // HACK:  Setting x-port-cf header to ensure the request is forwarded to the correct service
+  const modRequest = new Request(req.url, req)
+  modRequest.headers.set("x-port-cf", SERVICES[service].toString());
+  return await container.fetch(modRequest);
 });
 
 
