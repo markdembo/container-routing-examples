@@ -1,7 +1,10 @@
-# First stage: Install Node.js
+# First stage: Install Node.js and dependencies
 FROM node:20-slim AS node_builder
 WORKDIR /app
 COPY time-service.js .
+COPY websocket-service.js .
+COPY package*.json .
+RUN npm install --production
 
 # Second stage: Python and final image
 FROM python:3.11-slim
@@ -21,16 +24,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Copy Node.js service from first stage
+# Copy Node.js services from first stage
 COPY --from=node_builder /app/time-service.js .
+COPY --from=node_builder /app/websocket-service.js .
+COPY --from=node_builder /app/node_modules ./node_modules
 
-# Expose both ports
-EXPOSE 8080 8081
+# Expose all required ports
+EXPOSE 8080 8081 8082
 
-# Use a script to start both services
+# Use a script to start all services
 RUN echo '#!/bin/sh\n\
 python -u app.py &\
-node time-service.js\n' > /app/start_services.sh && \
+node time-service.js &\
+node websocket-service.js\n' > /app/start_services.sh && \
     chmod +x /app/start_services.sh
 
 CMD ["/app/start_services.sh"]

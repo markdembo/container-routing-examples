@@ -1,0 +1,14 @@
+{
+  "name": "multi-port-app",
+  "version": "1.0.0",
+  "description": "Multi-port application with WebSocket service",
+  "main": "websocket-service.js",
+  "dependencies": {
+    "ws": "^8.17.0"
+  },
+  "scripts": {
+    "start": "node websocket-service.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
